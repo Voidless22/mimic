@@ -59,7 +59,6 @@ local mimicPetCombat = false
 local tauntToggle = false
 local petGuardToggle = false
 
-
 local mimicActor = actors.register('mimic', function(message)
     if message.content.id == 'updateChase' then
         chaseToggle = message.content.chaseAssist
@@ -299,6 +298,8 @@ local function main()
     while running == true do
         if chaseToggle == true then doChase() end
         if followMATarget then mirrorTarget() end
+
+
 
         updateGroupIds()
         updateSpellbarIds()

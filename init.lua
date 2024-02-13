@@ -5,7 +5,7 @@ local mimicSpellbar = require('mimicSpellbar')
 local mimicGroup = require('mimicGroupWindow')
 local mimicXTarget = require('mimicXTargetWindow')
 local mimicTarget = require('mimicTargetWindow')
-local mimicConfigWindow = require('mimicConfigWindow')
+local mimicSettingsWindow = require('mimicSettingsWindow')
 local mimicPet = require('mimicPetWindow')
 local mimicControlDash = require('mimicControlDash')
 local mimicCharacters = {}
@@ -20,7 +20,7 @@ local OpenXTargetMimicWindow, ShowXTargetMimicWindow = {}, {}
 local OpenTargetMimicWindow, ShowTargetMimicWindow = {}, {}
 local OpenMimicPetWindow, ShowMimicPetWindow = {}, {}
 local OpenMimicControlDash, ShowMimicControlDash = {}, {}
-local OpenMimicSettings, ShowMimicSettings = {}, {}
+local OpenMimicSettings,ShowMimicSettings 
 
 MimicName = ""
 local window_flags = 0
@@ -51,7 +51,6 @@ DriverActor = actors.register('Driver', function(message)
             message.content.openXTargetWindow, message.content.showXTargetWindow
         OpenMimicControlDash[message.content.charName], ShowMimicControlDash[message.content.charName] =
             message.content.openMimicControlDash, message.content.showMimicControlDash
-
     elseif message.content.id == 'updateSpellbar' then
         mimicCharacters[message.content.charName]['Spellbar'] = message.content.spellbar
     elseif message.content.id == 'updateGroup' then
@@ -91,9 +90,7 @@ local function OpenAllInstances(open, show, name, type)
             if show[index] and type == 'Control Dash' then
                 mimicControlDash.DrawControlDash(index, mimicCharacters[index])
             end
-            if show[index] and type == 'Settings' then
-                MimicConfigWindow.DrawConfigWindow(index,mimicCharacters[index])
-            end
+
             ImGui.End()
         end
     end
@@ -107,7 +104,13 @@ local function MimicBarLoop()
     OpenAllInstances(OpenTargetMimicWindow, ShowTargetMimicWindow, "Mimic Target", 'Target')
     OpenAllInstances(OpenMimicPetWindow, ShowMimicPetWindow, "Mimic Pet", "Pet")
     OpenAllInstances(OpenMimicControlDash, ShowMimicControlDash, "Control Dash", "Control Dash")
-    OpenAllInstances(OpenMimicSettings, ShowMimicSettings, "Mimic Config", "Settings")
+    if mimicControlDash.openMimicSettings then
+        mimicControlDash.openMimicSettings, mimicControlDash.showMimicSettings = ImGui.Begin('Mimic Settings',mimicControlDash.spenMimicSettings, window_flags)
+        if mimicControlDash.ShowMimicSettings then
+            mimicSettingsWindow.DrawSettingsWindow()
+        end
+        ImGui.End()
+    end
 end
 
 
@@ -115,8 +118,8 @@ mq.imgui.init('Mimic Bar', MimicBarLoop)
 
 
 local function main()
-
     while running do
+
         mq.delay(100)
     end
 end
