@@ -46,7 +46,7 @@ if no_scrollbar then window_flags = bit32.bor(window_flags, ImGuiWindowFlags.NoS
 if no_resize then window_flags = bit32.bor(window_flags, ImGuiWindowFlags.NoResize) end
 
 
-
+MimicCasting = {}
 
 DriverActor = actors.register('Driver', function(message)
     if message.content.id == 'greetDriver' then
@@ -61,10 +61,15 @@ DriverActor = actors.register('Driver', function(message)
                 for toonName, settingValue in pairs(fileData[settingName]) do
                     if toonName == message.content.charName or toonName == nil then
                         Settings[settingName][message.content.charName] = settingValue
-                        printf("Updated Setting: %s for Character: %s to value %s", settingName,toonName,settingValue)
+                        printf("Updated Setting: %s for Character: %s to value %s", settingName, toonName, settingValue)
                     end
                 end
             end
+        end
+        if message.content.isCasting == nil then
+            mimicCharacters[message.content.charName]['isCasting'] = nil
+        else
+            mimicCharacters[message.content.charName]['isCasting'] = message.content.isCasting
         end
     elseif message.content.id == 'updateSpellbar' then
         mimicCharacters[message.content.charName]['Spellbar'] = message.content.spellbar
@@ -79,15 +84,20 @@ DriverActor = actors.register('Driver', function(message)
         mimicCharacters[message.content.charName].mimicPetId = message.content.petId
         mimicCharacters[message.content.charName].mimicPetCombat = message.content.inCombat
         mimicCharacters[message.content.charName].petMode = message.content.petMode
+    elseif message.content.id == 'castingTimeUpdate' then
+        if message.content.isCasting ~= nil then
+            mimicCharacters[message.content.charName]['isCasting'] = message.content.isCasting
+        else
+            mimicCharacters[message.content.charName]['isCasting'] = nil
+        end
     end
 end)
-
 local function OpenAllInstances(open, show, name, type)
     for charName, value in pairs(open) do
         if open[charName] then
             open[charName], show[charName] = ImGui.Begin(name .. charName, open[charName], window_flags)
             if show[charName] and type == 'Spellbar' then
-                mimicSpellbar.DrawSpellbar(charName, mimicCharacters[charName]['Spellbar'])
+                mimicSpellbar.DrawSpellbar(charName, mimicCharacters[charName])
             end
             if show[charName] and type == 'Group' then
                 mimicGroup.DrawMimicGroupWindow(charName, mimicCharacters[charName])
@@ -138,7 +148,7 @@ mq.imgui.init('Mimic Bar', MimicBarLoop)
 
 local function main()
     while running do
-        mq.delay(100)
+        mq.delay(10)
     end
 end
 

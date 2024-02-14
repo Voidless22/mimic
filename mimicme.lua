@@ -59,6 +59,8 @@ local mimicPetCombat = false
 local tauntToggle = false
 local petGuardToggle = false
 
+
+
 local mimicActor = actors.register('mimic', function(message)
     if message.content.id == 'updateChase' then
         chaseToggle = message.content.chaseAssist
@@ -87,23 +89,13 @@ local mimicActor = actors.register('mimic', function(message)
         end
     end
 end)
+
 local function updateDriver()
     mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
         {
             id = 'greetDriver',
             charName = mq.TLO.Me.Name(),
-            openGroupWindow = UIToggles['openGroupWindow'],
-            showGroupWindow = UIToggles['showGroupWindow'],
-            openPetWindow = UIToggles['openPetWindow'],
-            showPetWindow = UIToggles['showPetWindow'],
-            openTargetWindow = UIToggles['openTargetWindow'],
-            showTargetWindow = UIToggles['showTargetWindow'],
-            openXTargetWindow = UIToggles['openXTargetWindow'],
-            showXTargetWindow = UIToggles['showXTargetWindow'],
-            openSpellbar = UIToggles['openSpellbar'],
-            showSpellbar = UIToggles['showSpellbar'],
-            showMimicControlDash = UIToggles['showMimicControlDash'],
-            openMimicControlDash = UIToggles['openMimicControlDash'],
+            isCasting = mq.TLO.Me.Casting()
         })
 end
 
@@ -299,6 +291,16 @@ local function main()
         if chaseToggle == true then doChase() end
         if followMATarget then mirrorTarget() end
 
+        if mq.TLO.Me.Casting() then
+            while mq.TLO.Me.Casting() do
+                mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+                    { id = 'castingTimeUpdate', charName = mq.TLO.Me.Name(), isCasting = mq.TLO.Me.Casting()})
+                mq.delay(10)
+            end
+            mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+            { id = 'castingTimeUpdate', charName = mq.TLO.Me.Name(),isCasting = mq.TLO.Me.Casting()})
+        end
+
 
 
         updateGroupIds()
@@ -312,7 +314,7 @@ local function main()
             UIToggles['showPetWindow'], UIToggles['openPetWindow'] = false, false
         end
     end
-    mq.delay(100)
+    mq.delay(10)
 end
 
 
