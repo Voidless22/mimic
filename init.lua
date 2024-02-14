@@ -115,6 +115,8 @@ DriverActor = actors.register('Driver', function(message)
         end
     elseif message.content.id == 'updateBuffs' then
         mimicCharacters[message.content.charName]['currentBuffs'] = message.content.mimicBuffs
+    elseif message.content.id == 'updateMeleeTarget' then
+        mimicCharacters[message.content.charName]['meleeTarget'] = message.content.meleeTarget
     end
 end)
 

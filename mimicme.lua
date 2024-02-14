@@ -64,26 +64,6 @@ local petGuardToggle = false
 local meleeTarget = false
 
 
-local function meleeHandler()
-    if mq.TLO.Target() ~= nil and mq.TLO.Target.ID() ~= mq.TLO.Me.ID() then
-        mq.cmd('/attack on')
-        if mq.TLO.Target.Distance() > mq.TLO.Target.MaxRangeTo() then
-            mq.cmd('/nav target')
-            while mq.TLO.Navigation.Active() do mq.delay(10) end
-        end
-        if mq.TLO.Target() == nil or mq.TLO.Target.ID() == mq.TLO.Me.ID() then
-            meleeTarget = false
-            return
-        end
-        mq.cmd('/face')
-        mq.delay(100)
-
-        if mq.TLO.Target() == nil then
-            mq.cmd('/attack off')
-            meleeTarget = false
-        end
-    end
-end
 
 local mimicActor = actors.register('mimic', function(message)
     -- Chase Message
@@ -139,6 +119,19 @@ local function updateDriver()
         })
 end
 
+local function meleeHandler()
+    if mq.TLO.Target() ~= nil and mq.TLO.Target.ID() ~= mq.TLO.Me.ID() then
+        mq.cmd('/attack on')
+        if mq.TLO.Target.Distance() > mq.TLO.Target.MaxRangeTo() then
+            mq.cmd('/nav target')
+            while mq.TLO.Navigation.Active() do mq.delay(10) end
+        end
+
+        mq.cmd('/face')
+        mq.delay(100)
+    end
+end
+
 
 local function updateCurrentBuffs()
     local sendUpdate = false
@@ -164,8 +157,6 @@ local function updateCurrentBuffs()
             })
     end
 end
-
-
 local function updateSpellbarIds()
     local sendUpdate = false
     for i = 1, mq.TLO.Me.NumGems() do
@@ -188,7 +179,6 @@ local function updateSpellbarIds()
             { id = 'updateSpellbar', charName = mq.TLO.Me.Name(), spellbar = spellbarIds })
     end
 end
-
 local function updateGroupIds()
     local selfIncluded = false
     local sendUpdate = false
@@ -215,7 +205,6 @@ local function updateGroupIds()
             { id = 'updateGroup', charName = mq.TLO.Me.Name(), groupIds = groupIds })
     end
 end
-
 local function updateXTarget()
     local sendUpdate = false
     for i = 1, mq.TLO.Me.XTargetSlots() do
@@ -255,7 +244,6 @@ local function updateTarget()
             { id = 'updateTarget', charName = mq.TLO.Me.Name(), target = mimicTargetId })
     end
 end
-
 local function mirrorTarget()
     if mq.TLO.Group.MainAssist.ID() ~= nil and not (mq.TLO.Group.MainAssist.OtherZone() or mq.TLO.Group.MainAssist.Offline() or mq.TLO.Group.MainAssist.Name() == mq.TLO.Me.Name()) then
         if mq.TLO.Target.ID() ~= mq.TLO.Me.GroupAssistTarget.ID() then
@@ -316,7 +304,6 @@ local function updatePet()
         })
     end
 end
-
 local function doChase()
     if mq.TLO.Group.MainAssist.ID() ~= nil and not (mq.TLO.Group.MainAssist.OtherZone() or mq.TLO.Group.MainAssist.Offline() or mq.TLO.Group.MainAssist() == mq.TLO.Me.Name())
     then
@@ -368,13 +355,19 @@ local function main()
         end
 
 
-        if not meleeTarget and mq.TLO.Me.Combat() then
-            mq.cmd('/attack off')
-        end
         if meleeTarget then
             while meleeTarget do
-                meleeHandler()
+                if mq.TLO.Target.ID() == 0 or mq.TLO.Target.Dead() then
+                    meleeTarget = false
+                    mimicActor:send({ mailbox = 'Driver', script = 'mimic' },{ id = 'updateMeleeTarget', charName = mq.TLO.Me.Name(), meleeTarget = meleeTarget })
+                    mq.cmd('/attack off')
+                else
+                    meleeHandler()
+                end
             end
+        end
+        if mq.TLO.Me.Combat() and not meleeTarget then
+            mq.cmd('/attack off')
         end
         updateCurrentBuffs()
         updateGroupIds()
