@@ -4,7 +4,6 @@ local ImGui = require('ImGui')
 MimicControlDash = {}
 local chaseToggle
 
-MimicControlDash.OpenMimicSettings, MimicControlDash.ShowMimicSettings = false, false
 
 function MimicControlDash.DrawControlDash(charName, charTable)
     if mq.TLO.Spawn(charName).Sitting() then charTable.mimicSitting = 'Stand' else charTable.mimicSitting = 'Sit' end
@@ -21,11 +20,8 @@ function MimicControlDash.DrawControlDash(charName, charTable)
     ImGui.Text("%s's Dash", charName)
 
     if settingsButton then
-        MimicControlDash.openMimicSettings = not MimicControlDash.openMimicSettings
-        MimicControlDash.showMimicSettings = not MimicControlDash.showMimicSettings
-       
-        print(MimicControlDash.openMimicSettings, MimicControlDash.showMimicSettings)
-    end
+        Settings.OpenMimicSettings = not Settings.OpenMimicSettings
+        end
 
     if followTargetClicked then
         if charTable.followMATarget == nil then
