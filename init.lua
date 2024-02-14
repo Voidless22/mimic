@@ -21,7 +21,10 @@ local ShowXTargetMimicWindow = {}
 local ShowTargetMimicWindow = {}
 local ShowMimicPetWindow = {}
 local ShowMimicControlDash = {}
-local ShowMimicSettings = false
+ShowMimicSettings = false
+OpenMimicSettings = false
+
+
 
 
 Settings = {
@@ -31,8 +34,8 @@ Settings = {
     OpenTargetMimicWindow = {},
     OpenMimicPetWindow = {},
     OpenMimicControlDash = {},
-    OpenMimicSettings = false
 }
+
 MimicName = ""
 local window_flags = 0
 local no_titlebar = true
@@ -43,55 +46,26 @@ if no_scrollbar then window_flags = bit32.bor(window_flags, ImGuiWindowFlags.NoS
 if no_resize then window_flags = bit32.bor(window_flags, ImGuiWindowFlags.NoResize) end
 
 
-local function serializeSettings()
-    local needsUpdate = false
-    -- initialize your config table
-    -- name of config file in config folder
-    local path = 'mimicDriverConfig.lua'
-    -- attempt to read the config file
-    local configData, err = loadfile(mq.configDir .. '/' .. path)
-    if err then
-        mq.pickle(path, Settings)
-    else
-        local fileData = configData()
-        for settingName, value in pairs(Settings) do
-            if type(Settings[settingName]) == 'table' then
-                for toonInfo, settingValue in pairs(Settings[settingName]) do
-                    if tostring(fileData[settingName][toonInfo]) == tostring(settingValue) then
-                        printf('%s Setting is found and set to %s on %s, moving on', settingName, settingValue, toonInfo)
-                    else
-                        needsUpdate = true
-                    end
-                end
-            end
-        end
-    end
-    if needsUpdate then
-        print('saving settings.')
-        mq.pickle(path, Settings)
-    end
-end
-
-
 
 
 DriverActor = actors.register('Driver', function(message)
     if message.content.id == 'greetDriver' then
         mimicCharacters[message.content.charName] = {}
         printf('character added %s', message.content.charName)
-        Settings.OpenMimicSpellBar[message.content.charName], ShowMimicSpellBar[message.content.charName] =
-            message.content.openSpellbar, message.content.showSpellbar
-        Settings.OpenMimicGroupWindow[message.content.charName], ShowMimicGroupWindow[message.content.charName] =
-            message.content.openGroupWindow, message.content.showGroupWindow
-        Settings.OpenMimicPetWindow[message.content.charName], ShowMimicPetWindow[message.content.charName] =
-            message.content.openPetWindow, message.content.showPetWindow
-        Settings.OpenTargetMimicWindow[message.content.charName], ShowTargetMimicWindow[message.content.charName] =
-            message.content.openTargetWindow, message.content.showTargetWindow
-        Settings.OpenXTargetMimicWindow[message.content.charName], ShowXTargetMimicWindow[message.content.charName] =
-            message.content.openXTargetWindow, message.content.showXTargetWindow
-        Settings.OpenMimicControlDash[message.content.charName], ShowMimicControlDash[message.content.charName] =
-            message.content.openMimicControlDash, message.content.showMimicControlDash
-        serializeSettings()
+        local settingsFile, err = loadfile(mq.configDir .. '/' .. 'mimicSettings.lua')
+        if err then
+            mq.pickle('mimicSettings.lua', Settings)
+        elseif settingsFile then
+            local fileData = settingsFile()
+            for settingName, value in pairs(fileData) do
+                for toonName, settingValue in pairs(fileData[settingName]) do
+                    if toonName == message.content.charName or toonName == nil then
+                        Settings[settingName][message.content.charName] = settingValue
+                        printf("Updated Setting: %s for Character: %s to value %s", settingName,toonName,settingValue)
+                    end
+                end
+            end
+        end
     elseif message.content.id == 'updateSpellbar' then
         mimicCharacters[message.content.charName]['Spellbar'] = message.content.spellbar
     elseif message.content.id == 'updateGroup' then
@@ -136,30 +110,6 @@ local function OpenAllInstances(open, show, name, type)
     end
 end
 
-local windowList = {
-    open = {
-        Settings.OpenMimicControlDash,
-        Settings.OpenMimicGroupWindow,
-        Settings.OpenMimicPetWindow,
-        Settings.OpenMimicSpellBar,
-        Settings.OpenTargetMimicWindow,
-        Settings.OpenXTargetMimicWindow },
-    show = {
-        ShowMimicControlDash,
-        ShowMimicGroupWindow,
-        ShowMimicPetWindow,
-        ShowMimicSpellBar,
-        ShowTargetMimicWindow,
-        ShowXTargetMimicWindow
-    },
-    name = {
-        "Control Dash", "Mimic Group", "Mimic Pet", "Mimic Bar", "Mimic Target", "Mimic XTarget"
-    },
-    type = {
-        "Control Dash", "Group", "Pet", "Spellbar", "Target", "XTarget"
-
-    }
-}
 
 local function MimicBarLoop()
     OpenAllInstances(Settings.OpenMimicSpellBar, ShowMimicSpellBar, "Mimic Bar", "Spellbar")
@@ -168,14 +118,16 @@ local function MimicBarLoop()
     OpenAllInstances(Settings.OpenTargetMimicWindow, ShowTargetMimicWindow, "Mimic Target", 'Target')
     OpenAllInstances(Settings.OpenMimicPetWindow, ShowMimicPetWindow, "Mimic Pet", "Pet")
     OpenAllInstances(Settings.OpenMimicControlDash, ShowMimicControlDash, "Control Dash", "Control Dash")
-    if Settings.OpenMimicSettings then
-        Settings.OpenMimicSettings, Settings.ShowMimicSettings = ImGui.Begin('Settings', Settings.OpenMimicSettings)
-        if Settings.ShowMimicSettings then
+
+    if OpenMimicSettings then
+        OpenMimicSettings, ShowMimicSettings = ImGui.Begin('Settings', OpenMimicSettings)
+        if ShowMimicSettings then
             mimicSettingsWindow.DrawSettingsWindow()
         end
         ImGui.End()
     end
 end
+
 
 
 

@@ -20,7 +20,7 @@ function MimicControlDash.DrawControlDash(charName, charTable)
     ImGui.Text("%s's Dash", charName)
 
     if settingsButton then
-        Settings.OpenMimicSettings = not Settings.OpenMimicSettings
+        OpenMimicSettings = not OpenMimicSettings
         end
 
     if followTargetClicked then
