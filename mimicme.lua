@@ -34,8 +34,8 @@ local chaseToggle = false
 local groupIds = {}
 local mimicSitting = "Sit"
 local previousGroup = { 'Empty', 'Empty', 'Empty', 'Empty', 'Empty', 'Empty', }
-
-local spellbarIds = {}
+local previousMimicBuffs = {}
+local previousMimicBuffDurations = {}
 local previousSpellbar = {}
 
 local xtargetList = {}
@@ -45,6 +45,8 @@ local groupIds = {}
 local spellbarIds = {}
 local xtargetIds = {}
 local mimicTargetId = {}
+local mimicBuffs = {}
+local mimicBuffDurations = {}
 
 local mimicTargetId = 'Empty'
 local previousTarget = 'Empty'
@@ -65,52 +67,63 @@ local meleeTarget = false
 local function meleeHandler()
     if mq.TLO.Target() ~= nil and mq.TLO.Target.ID() ~= mq.TLO.Me.ID() then
         mq.cmd('/attack on')
-    end
-    if mq.TLO.Target.Distance() > mq.TLO.Target.MaxRangeTo() then
-        mq.cmd('/nav target')
-        while mq.TLO.Navigation.Active() do mq.delay(10) end
-    end
-    if mq.TLO.Target() == nil or mq.TLO.Target.ID() == mq.TLO.Me.ID() then
-        meleeTarget = false
-        return
-    end
-    mq.cmd('/face')
-    mq.delay(100)
+        if mq.TLO.Target.Distance() > mq.TLO.Target.MaxRangeTo() then
+            mq.cmd('/nav target')
+            while mq.TLO.Navigation.Active() do mq.delay(10) end
+        end
+        if mq.TLO.Target() == nil or mq.TLO.Target.ID() == mq.TLO.Me.ID() then
+            meleeTarget = false
+            return
+        end
+        mq.cmd('/face')
+        mq.delay(100)
 
-    if mq.TLO.Target() == nil then
-        mq.cmd('/attack off')
-        meleeTarget = false
+        if mq.TLO.Target() == nil then
+            mq.cmd('/attack off')
+            meleeTarget = false
+        end
     end
 end
 
 local mimicActor = actors.register('mimic', function(message)
+    -- Chase Message
     if message.content.id == 'updateChase' then
         chaseToggle = message.content.chaseAssist
+        -- MA Target Message
     elseif message.content.id == 'updateFollowMATarget' then
         followMATarget = message.content.followMATarget
+        -- Spell Cast Message
     elseif message.content.id == 'castSpell' and message.content.charName == mq.TLO.Me.Name() then
         mq.cmdf('/cast %i', message.content.gem)
+        -- new Target Message
     elseif message.content.id == 'newTarget' and message.content.charName == mq.TLO.Me.Name() then
         mq.cmdf('/target %s', message.content.targetId)
+        -- Pet Mode Message
     elseif message.content.id == 'petModeUpdate' and message.content.charName == mq.TLO.Me.Name() then
         if message.content.mode == 'Follow' then mq.cmd('/pet guard') end
         if message.content.mode == 'Guard' then mq.cmd('/pet Follow') end
+        -- Pet Taunt Message
     elseif message.content.id == 'petTauntUpdate' and message.content.charName == mq.TLO.Me.Name() then
         if message.content.taunt == true then mq.cmd('/pet taunt on') end
         if message.content.taunt == false then mq.cmd('/pet taunt off') end
+        -- Pet Attack Message
     elseif message.content.id == 'petAttack' and message.content.charName == mq.TLO.Me.Name() then
         mq.cmd('/pet attack')
+        -- Pet Back off Message
     elseif message.content.id == 'petBackOff' and message.content.charName == mq.TLO.Me.Name() then
         mq.cmd('/pet stop')
         mq.cmd('/pet back')
+        -- Sit Toggle Message
     elseif message.content.id == 'switchSitting' and message.content.charName == mq.TLO.Me.Name() then
         if mq.TLO.Me.Sitting() then
             mq.cmd('/stand')
         elseif not mq.TLO.Me.Sitting() then
             mq.cmd('/sit')
         end
+        -- Attack Button Message
     elseif message.content.id == 'updateMeleeTarget' and message.content.charName == mq.TLO.Me.Name() then
         meleeTarget = message.content.meleeTarget
+        -- Clear Target message
     elseif message.content.id == 'clearTarget' and message.content.charName == mq.TLO.Me.Name() then
         print("clearing Target")
         mq.cmd('/target clear')
@@ -127,6 +140,30 @@ local function updateDriver()
 end
 
 
+local function updateCurrentBuffs()
+    local sendUpdate = false
+    for index = 1, mq.TLO.Me.MaxBuffSlots() do
+        if mq.TLO.Me.Buff(index).ID() ~= nil and previousMimicBuffs[index] ~= mq.TLO.Me.Buff(index).ID() then
+            previousMimicBuffs[index] = mq.TLO.Me.Buff(index).Spell()
+        end
+    end
+    for i = 1, #previousMimicBuffs do
+        if mimicBuffs[i] ~= previousMimicBuffs[i] then
+            sendUpdate = true
+            mimicBuffs[i] = previousMimicBuffs[i]
+            print(mimicBuffs[i])
+        end
+    end
+    if sendUpdate then
+        print('sending buffs')
+        mimicActor:send({ mailbox = "Driver", script = 'mimic' },
+            {
+                id = 'updateBuffs',
+                charName = mq.TLO.Me.Name(),
+                mimicBuffs = mimicBuffs
+            })
+    end
+end
 
 
 local function updateSpellbarIds()
@@ -283,7 +320,8 @@ end
 local function doChase()
     if mq.TLO.Group.MainAssist.ID() ~= nil and not (mq.TLO.Group.MainAssist.OtherZone() or mq.TLO.Group.MainAssist.Offline() or mq.TLO.Group.MainAssist() == mq.TLO.Me.Name())
     then
-        if mq.TLO.Group.MainAssist.Distance() > 20 and not mq.TLO.Me.Casting() and not meleeTarget then
+        if not (mq.TLO.Group.MainAssist.OtherZone() or mq.TLO.Group.MainAssist.Offline() or mq.TLO.Group.MainAssist() == mq.TLO.Me.Name()) and
+            mq.TLO.Group.MainAssist.Distance() > 20 and not mq.TLO.Me.Casting() and not meleeTarget then
             mq.cmdf("/squelch /nav id %i", mq.TLO.Group.MainAssist.ID())
             while mq.TLO.Navigation.Active() do
                 mq.delay(50)
@@ -307,6 +345,7 @@ updateSpellbarIds()
 updateXTarget()
 updateTarget()
 updatePet()
+updateCurrentBuffs()
 
 
 
@@ -337,7 +376,7 @@ local function main()
                 meleeHandler()
             end
         end
-
+        updateCurrentBuffs()
         updateGroupIds()
         updateSpellbarIds()
         updateXTarget()

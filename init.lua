@@ -1,6 +1,6 @@
 local mq = require('mq')
 local actors = require('actors')
-local imgui = require('ImGui')
+local ImGui = require('ImGui')
 local mimicSpellbar = require('mimicSpellbar')
 local mimicGroup = require('mimicGroupWindow')
 local mimicXTarget = require('mimicXTargetWindow')
@@ -8,6 +8,7 @@ local mimicTarget = require('mimicTargetWindow')
 local mimicSettingsWindow = require('mimicSettingsWindow')
 local mimicPet = require('mimicPetWindow')
 local mimicControlDash = require('mimicControlDash')
+local mimicBuffWindow = require('mimicBuffWindow')
 local mimicCharacters = {}
 
 
@@ -21,6 +22,7 @@ local ShowXTargetMimicWindow = {}
 local ShowTargetMimicWindow = {}
 local ShowMimicPetWindow = {}
 local ShowMimicControlDash = {}
+local ShowMimicBuffWindow = {}
 ShowMimicSettings = false
 OpenMimicSettings = false
 
@@ -34,6 +36,7 @@ Settings = {
     OpenTargetMimicWindow = {},
     OpenMimicPetWindow = {},
     OpenMimicControlDash = {},
+    OpenMimicBuffWindow = {}
 }
 
 MimicName = ""
@@ -46,6 +49,23 @@ if no_scrollbar then window_flags = bit32.bor(window_flags, ImGuiWindowFlags.NoS
 if no_resize then window_flags = bit32.bor(window_flags, ImGuiWindowFlags.NoResize) end
 
 
+
+local function prepSettings()
+    local nameFound = false
+    for name, data in pairs(mimicCharacters) do
+        for settingName, value in pairs(Settings) do
+            for toonName, settingValue in pairs(Settings[settingName]) do
+                if toonName == mimicCharacters[name] then nameFound = true end
+            end
+            if not nameFound then
+                Settings[settingName][name] = true
+            else
+                nameFound = false
+            end
+        end
+    end
+end
+
 MimicCasting = {}
 
 DriverActor = actors.register('Driver', function(message)
@@ -54,14 +74,17 @@ DriverActor = actors.register('Driver', function(message)
         printf('character added %s', message.content.charName)
         local settingsFile, err = loadfile(mq.configDir .. '/' .. 'mimicSettings.lua')
         if err then
+            prepSettings()
             mq.pickle('mimicSettings.lua', Settings)
         elseif settingsFile then
             local fileData = settingsFile()
+
             for settingName, value in pairs(fileData) do
                 for toonName, settingValue in pairs(fileData[settingName]) do
-                    if toonName == message.content.charName or toonName == nil then
+                    if Settings[settingName][message.content.charName] ~= fileData[settingName][message.content.charName] then
                         Settings[settingName][message.content.charName] = settingValue
-                        printf("Updated Setting: %s for Character: %s to value %s", settingName, toonName, settingValue)
+                        printf("Updated Setting: %s for Character: %s to value %s", settingName, toonName,
+                            settingValue)
                     end
                 end
             end
@@ -90,12 +113,15 @@ DriverActor = actors.register('Driver', function(message)
         else
             mimicCharacters[message.content.charName]['isCasting'] = nil
         end
+    elseif message.content.id == 'updateBuffs' then
+        mimicCharacters[message.content.charName]['currentBuffs'] = message.content.mimicBuffs
     end
 end)
-local function OpenAllInstances(open, show, name, type)
+
+local function OpenAllInstances(open, show, name, type, windowflags)
     for charName, value in pairs(open) do
         if open[charName] then
-            open[charName], show[charName] = ImGui.Begin(name .. charName, open[charName], window_flags)
+            open[charName], show[charName] = ImGui.Begin(name .. charName, open[charName], windowflags)
             if show[charName] and type == 'Spellbar' then
                 mimicSpellbar.DrawSpellbar(charName, mimicCharacters[charName])
             end
@@ -114,6 +140,9 @@ local function OpenAllInstances(open, show, name, type)
             if show[charName] and type == 'Control Dash' then
                 mimicControlDash.DrawControlDash(charName, mimicCharacters[charName])
             end
+            if show[charName] and type == 'Buffs' then
+                mimicBuffWindow.DrawMimicBuffWindow(charName, mimicCharacters[charName])
+            end
 
             ImGui.End()
         end
@@ -122,12 +151,14 @@ end
 
 
 local function MimicBarLoop()
-    OpenAllInstances(Settings.OpenMimicSpellBar, ShowMimicSpellBar, "Mimic Bar", "Spellbar")
-    OpenAllInstances(Settings.OpenMimicGroupWindow, ShowMimicGroupWindow, "Mimic Group", "Group")
-    OpenAllInstances(Settings.OpenXTargetMimicWindow, ShowXTargetMimicWindow, "Mimic XTarget", 'Xtar')
-    OpenAllInstances(Settings.OpenTargetMimicWindow, ShowTargetMimicWindow, "Mimic Target", 'Target')
-    OpenAllInstances(Settings.OpenMimicPetWindow, ShowMimicPetWindow, "Mimic Pet", "Pet")
-    OpenAllInstances(Settings.OpenMimicControlDash, ShowMimicControlDash, "Control Dash", "Control Dash")
+    OpenAllInstances(Settings.OpenMimicSpellBar, ShowMimicSpellBar, "Mimic Bar", "Spellbar", window_flags)
+    OpenAllInstances(Settings.OpenMimicGroupWindow, ShowMimicGroupWindow, "Mimic Group", "Group", window_flags)
+    OpenAllInstances(Settings.OpenXTargetMimicWindow, ShowXTargetMimicWindow, "Mimic XTarget", 'Xtar', window_flags)
+    OpenAllInstances(Settings.OpenTargetMimicWindow, ShowTargetMimicWindow, "Mimic Target", 'Target', window_flags)
+    OpenAllInstances(Settings.OpenMimicPetWindow, ShowMimicPetWindow, "Mimic Pet", "Pet", window_flags)
+    OpenAllInstances(Settings.OpenMimicControlDash, ShowMimicControlDash, "Control Dash", "Control Dash", window_flags)
+    OpenAllInstances(Settings.OpenMimicBuffWindow, ShowMimicBuffWindow, "Mimic Buffs", "Buffs",
+        bit32.bor(ImGuiWindowFlags.NoTitleBar))
 
     if OpenMimicSettings then
         OpenMimicSettings, ShowMimicSettings = ImGui.Begin('Settings', OpenMimicSettings)
@@ -137,7 +168,6 @@ local function MimicBarLoop()
         ImGui.End()
     end
 end
-
 
 
 

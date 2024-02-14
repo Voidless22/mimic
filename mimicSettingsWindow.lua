@@ -50,21 +50,20 @@ function MimicSettingsWindow.DrawSettingsWindow()
     ImGui.SetCursorPos(170, 60)
     local settingToggles = {}
     for settingName, value in pairs(Settings) do
-        if type(Settings[settingName] ~= 1) then
-            for toonName, settingValue in pairs(Settings[settingName]) do
-                if toonName == section then
-                    ImGui.SetCursorPos(170, ImGui.GetCursorPosY())
-                    if type(settingValue) == 'boolean' then
-                        ImGui.Text(settingName)
-                        ImGui.SameLine()
-                        ImGui.SetCursorPosX(350)
-                        local settingValue, clicked = ImGui.Checkbox("##" .. settingName, settingValue)
-                        if clicked then
-                            Settings[settingName][toonName] = not Settings[settingName][toonName]
-                            mq.pickle(settingsPath,Settings)
-                            local fileData = loadfile(mq.configDir..'/'..settingsPath)
-                            Settings = fileData()
-                        end
+        for toonName, settingValue in pairs(Settings[settingName]) do
+            if toonName == section then
+                ImGui.SetCursorPos(170, ImGui.GetCursorPosY())
+                if type(settingValue) == 'boolean' then
+                    ImGui.Text(settingName)
+                    ImGui.SameLine()
+                    ImGui.SetCursorPosX(350)
+                    local settingValue, clicked = ImGui.Checkbox("##" .. settingName, settingValue)
+                    if clicked then
+                        Settings[settingName][toonName] = not Settings[settingName][toonName]
+
+                        mq.pickle(settingsPath, Settings)
+                        local fileData = loadfile(mq.configDir .. '/' .. settingsPath)
+                        Settings = fileData()
                     end
                 end
             end

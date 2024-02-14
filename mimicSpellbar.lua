@@ -10,7 +10,7 @@ function MimicSpellbar.DrawSpellbar(charName, charTable)
     local gemButtons = {}
 
     local spellIds = charTable['Spellbar']
-    ImGui.SetWindowSize("Mimic Bar-" .. charName, 40, 320)
+    ImGui.SetWindowSize("Mimic Bar" .. charName, 40, 320)
     ImGui.SetCursorPos(4, 4)
     local animSpellIcons = mq.FindTextureAnimation('A_SpellIcons')
 
