@@ -7,31 +7,71 @@ local chaseToggle
 
 function MimicControlDash.DrawControlDash(charName, charTable)
     if mq.TLO.Spawn(charName).Sitting() then charTable.mimicSitting = 'Stand' else charTable.mimicSitting = 'Sit' end
-    ImGui.SetWindowSize('Control Dash' .. charName, 128, 100)
+    ImGui.SetWindowSize('Control Dash' .. charName, 128, 150)
+    -- Settings Button
     ImGui.SetCursorPos(4, 4)
+    ImGui.PushStyleColor(ImGuiCol.Text, 255, 255, 255, 255)
     local settingsButton = ImGui.Button("Settings", 60, 20)
+    -- Sit Button
     ImGui.SetCursorPos(64, 4)
     local sitButton = ImGui.Button(charTable.mimicSitting, 60, 20)
     ImGui.SetCursorPos(4, 25)
-    local chaseCheckbox, chaseToggleClicked = ImGui.Checkbox("Chase Assist", charTable.chaseToggle)
-    ImGui.SetCursorPos(4, ImGui.GetCursorPosY())
-    local followTargetToggle, followTargetClicked = ImGui.Checkbox("Mirror Target", charTable.followMATarget)
-    ImGui.SetCursorPos(4, 80)
+    -- Attack button
+    if charTable.meleeTarget then
+        ImGui.PushStyleColor(ImGuiCol.Text, 0, 255, 0, 255)
+    elseif not charTable.meleeTarget then
+        ImGui.PushStyleColor(ImGuiCol.Text, 255, 0, 0, 255)
+    end
+    local attackButton = ImGui.Button("Melee Atack", 120, 20)
+    -- Clear Target Button
+    ImGui.SetCursorPos(4, 46)
+    ImGui.PushStyleColor(ImGuiCol.Text, 255, 255, 255, 255)
+    local clearTargetButton = ImGui.Button("Clear Target", 120, 20)
+    -- Chase Button
+    ImGui.SetCursorPos(4, 68)
+    if charTable.chaseToggle then
+        ImGui.PushStyleColor(ImGuiCol.Text, 0, 255, 0, 255)
+    elseif not charTable.chaseToggle then
+        ImGui.PushStyleColor(ImGuiCol.Text, 255, 0, 0, 255)
+    end
+    local chaseToggleButton = ImGui.Button("Chase Assist", 120, 20)
+    -- Follow MA Target Button
+    ImGui.SetCursorPos(4, 89)
+    if charTable.followMATarget then
+        ImGui.PushStyleColor(ImGuiCol.Text, 0, 255, 0, 255)
+    elseif not charTable.followMATarget then
+        ImGui.PushStyleColor(ImGuiCol.Text, 255, 0, 0, 255)
+    end
+    local followTargetButton = ImGui.Button("Mirror Target", 120, 20)
+    -- Char Name Footer
+    ImGui.PushStyleColor(ImGuiCol.Text, 255, 255, 255, 255)
+    ImGui.SetCursorPos(4, 130)
     ImGui.Text("%s's Dash", charName)
 
+    ImGui.PopStyleColor(6)
     if settingsButton then
         OpenMimicSettings = not OpenMimicSettings
-        end
-
-    if followTargetClicked then
+    end
+    if followTargetButton then
         if charTable.followMATarget == nil then
             charTable.followMATarget = false
         end
         charTable.followMATarget = not charTable.followMATarget
         DriverActor:send({ mailbox = 'mimic', character = charName, script = 'mimic/mimicme' },
-            { id = 'updateFollowMATarget', followMATarget = charTable.followMATarget })
+            { id = 'updateFollowMATarget', charName = charName, followMATarget = charTable.followMATarget })
     end
-    if chaseToggleClicked then
+    if clearTargetButton then
+        DriverActor:send({ mailbox = 'mimic', character = charName, script = 'mimic/mimicme' }, { id = 'clearTarget', charName = charName })
+    end
+    if attackButton then
+        if charTable.meleeTarget == nil then
+            charTable.meleeTarget = false
+        end
+        charTable.meleeTarget = not charTable.meleeTarget
+        DriverActor:send({ mailbox = 'mimic', character = charName, script = 'mimic/mimicme' },
+            { id = 'updateMeleeTarget', charName = charName, meleeTarget = charTable.meleeTarget })
+    end
+    if chaseToggleButton then
         if charTable.chaseToggle == nil then
             charTable.chaseToggle = false
         end

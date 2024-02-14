@@ -59,7 +59,29 @@ local mimicPetCombat = false
 local tauntToggle = false
 local petGuardToggle = false
 
+local meleeTarget = false
 
+
+local function meleeHandler()
+    if mq.TLO.Target() ~= nil and mq.TLO.Target.ID() ~= mq.TLO.Me.ID() then
+        mq.cmd('/attack on')
+    end
+    if mq.TLO.Target.Distance() > mq.TLO.Target.MaxRangeTo() then
+        mq.cmd('/nav target')
+        while mq.TLO.Navigation.Active() do mq.delay(10) end
+    end
+    if mq.TLO.Target() == nil or mq.TLO.Target.ID() == mq.TLO.Me.ID() then
+        meleeTarget = false
+        return
+    end
+    mq.cmd('/face')
+    mq.delay(100)
+
+    if mq.TLO.Target() == nil then
+        mq.cmd('/attack off')
+        meleeTarget = false
+    end
+end
 
 local mimicActor = actors.register('mimic', function(message)
     if message.content.id == 'updateChase' then
@@ -87,6 +109,11 @@ local mimicActor = actors.register('mimic', function(message)
         elseif not mq.TLO.Me.Sitting() then
             mq.cmd('/sit')
         end
+    elseif message.content.id == 'updateMeleeTarget' and message.content.charName == mq.TLO.Me.Name() then
+        meleeTarget = message.content.meleeTarget
+    elseif message.content.id == 'clearTarget' and message.content.charName == mq.TLO.Me.Name() then
+        print("clearing Target")
+        mq.cmd('/target clear')
     end
 end)
 
@@ -256,7 +283,7 @@ end
 local function doChase()
     if mq.TLO.Group.MainAssist.ID() ~= nil and not (mq.TLO.Group.MainAssist.OtherZone() or mq.TLO.Group.MainAssist.Offline() or mq.TLO.Group.MainAssist() == mq.TLO.Me.Name())
     then
-        if mq.TLO.Group.MainAssist.Distance() > 20 and not mq.TLO.Me.Casting() then
+        if mq.TLO.Group.MainAssist.Distance() > 20 and not mq.TLO.Me.Casting() and not meleeTarget then
             mq.cmdf("/squelch /nav id %i", mq.TLO.Group.MainAssist.ID())
             while mq.TLO.Navigation.Active() do
                 mq.delay(50)
@@ -294,14 +321,22 @@ local function main()
         if mq.TLO.Me.Casting() then
             while mq.TLO.Me.Casting() do
                 mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
-                    { id = 'castingTimeUpdate', charName = mq.TLO.Me.Name(), isCasting = mq.TLO.Me.Casting()})
+                    { id = 'castingTimeUpdate', charName = mq.TLO.Me.Name(), isCasting = mq.TLO.Me.Casting() })
                 mq.delay(10)
             end
             mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
-            { id = 'castingTimeUpdate', charName = mq.TLO.Me.Name(),isCasting = mq.TLO.Me.Casting()})
+                { id = 'castingTimeUpdate', charName = mq.TLO.Me.Name(), isCasting = mq.TLO.Me.Casting() })
         end
 
 
+        if not meleeTarget and mq.TLO.Me.Combat() then
+            mq.cmd('/attack off')
+        end
+        if meleeTarget then
+            while meleeTarget do
+                meleeHandler()
+            end
+        end
 
         updateGroupIds()
         updateSpellbarIds()
