@@ -53,17 +53,33 @@ function MimicSettingsWindow.DrawSettingsWindow()
         for toonName, settingValue in pairs(Settings[settingName]) do
             if toonName == section then
                 ImGui.SetCursorPos(170, ImGui.GetCursorPosY())
-                if type(settingValue) == 'boolean' then
-                    ImGui.Text(settingName)
-                    ImGui.SameLine()
-                    ImGui.SetCursorPosX(350)
-                    local settingValue, clicked = ImGui.Checkbox("##" .. settingName, settingValue)
-                    if clicked then
+                if settingName ~= 'OpenMimicLoadoutWindow' then
+                    if type(settingValue) == 'boolean' then
+                        ImGui.Text(settingName)
+                        ImGui.SameLine()
+                        ImGui.SetCursorPosX(350)
+                        local settingValue, clicked = ImGui.Checkbox("##" .. settingName, settingValue)
+                        if clicked then
+                            Settings[settingName][toonName] = not Settings[settingName][toonName]
+                            mq.pickle('mimicSettings.lua', Settings)
+                            local newFileData, error = loadfile(mq.configDir .. '/' .. 'mimicSettings.lua')
+                            if newFileData then
+                                Settings = newFileData()
+                            end
+                        end
+                    end
+                else
+                    local previousCursorPos = ImGui.GetCursorPosVec()
+                    ImGui.SetCursorPos(10, 420)
+                    local editLoadoutButton = ImGui.Button("Edit Loadout", 150, 30)
+                    ImGui.SetCursorPos(previousCursorPos)
+                    if editLoadoutButton then
                         Settings[settingName][toonName] = not Settings[settingName][toonName]
-
-                        mq.pickle(settingsPath, Settings)
-                        local fileData = loadfile(mq.configDir .. '/' .. settingsPath)
-                        Settings = fileData()
+                        mq.pickle('mimicSettings.lua', Settings)
+                        local newFileData, error = loadfile(mq.configDir .. '/' .. 'mimicSettings.lua')
+                        if newFileData then
+                            Settings = newFileData()
+                        end
                     end
                 end
             end

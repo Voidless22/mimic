@@ -28,7 +28,7 @@ function MimicPetWindow.DrawPetWindow(charName, charTable)
         ImGui.ProgressBar(petHPRatio, -1, 15)
     end
     local targetCursorPos = ImGui.GetCursorPosVec()
-    if charTable.mimicPetCombat == true and charTable.mimicPetTarget ~= 'Empty' and mq.TLO.Spawn(charTable.mimicPetTarget)() ~= nil then
+    if charTable.mimicPetCombat == true and charTable.mimicPetTarget ~= 'Empty' and mq.TLO.Spawn(charTable.mimicPetTarget)() ~= nil and not mq.TLO.Spawn(charTable.mimicPetTarget).Dead() then
         ImGui.SetCursorPos(targetCursorPos)
         targetHPRatio = mq.TLO.Spawn(charTable.mimicPetTarget).PctHPs() / 100 or 0
         ImGui.SetCursorPos(4, ImGui.GetCursorPos() + 40)

@@ -63,7 +63,8 @@ local petGuardToggle = false
 
 local meleeTarget = false
 
-
+local previousSpellTable = { categories = {} }
+local currentSpellTable = { categories = {} }
 
 local mimicActor = actors.register('mimic', function(message)
     -- Chase Message
@@ -107,19 +108,15 @@ local mimicActor = actors.register('mimic', function(message)
     elseif message.content.id == 'clearTarget' and message.content.charName == mq.TLO.Me.Name() then
         print("clearing Target")
         mq.cmd('/target clear')
+    elseif message.content.id == 'updateSpellbar' and message.content.charName == mq.TLO.Me.Name() then
+        print(message.content.gem, message.content.spellId)
+        mq.cmdf('/memspell %i "%s"', message.content.gem, message.content.spellId)
     end
 end)
 
-local function updateDriver()
-    mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
-        {
-            id = 'greetDriver',
-            charName = mq.TLO.Me.Name(),
-            isCasting = mq.TLO.Me.Casting()
-        })
-end
 
-local function meleeHandler()
+
+local function meleeRoutine()
     if mq.TLO.Target() ~= nil and mq.TLO.Target.ID() ~= mq.TLO.Me.ID() then
         mq.cmd('/attack on')
         if mq.TLO.Target.Distance() > mq.TLO.Target.MaxRangeTo() then
@@ -131,7 +128,15 @@ local function meleeHandler()
         mq.delay(100)
     end
 end
-
+local function greetDriver()
+    mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+        {
+            id = 'greetDriver',
+            charName = mq.TLO.Me.Name(),
+            isCasting = mq.TLO.Me.Casting(),
+            openLoadoutOnLaunch = false
+        })
+end
 
 local function updateCurrentBuffs()
     local sendUpdate = false
@@ -254,19 +259,14 @@ end
 local function updatePet()
     local sendUpdate = false
     if mq.TLO.Me.Pet() == "NO PET" then
-        mimicPetId = 'Empty'
-        if UIToggles['showPetWindow'] == true and UIToggles['openPetWindow'] == true then
-            UIToggles['showPetWindow'], UIToggles['openPetWindow'] = false, false
-            updateDriver()
+        previousPetId = 'Empty'
+        if mimicPetId ~= previousPetId then
+            sendUpdate = true
+            mimicPetId = 'Empty'
         end
     end
     -- Pet Summoned
     if mq.TLO.Me.Pet() ~= 'NO PET' then
-        if UIToggles['showPetWindow'] == false and UIToggles['openPetWindow'] == false then
-            UIToggles['showPetWindow'], UIToggles['openPetWindow'] = true, true
-            updateDriver()
-        end
-
         previousPetId = mq.TLO.Spawn(mq.TLO.Me.Pet()).ID()
         if mimicPetId ~= previousPetId then
             sendUpdate = true
@@ -281,10 +281,9 @@ local function updatePet()
             end
         end
         -- Target
-        if mq.TLO.Me.Pet.Target.ID() == nil or mq.TLO.Me.Pet.Target.ID() == 0 then
+        if mq.TLO.Me.Pet.Target.ID() == 0 or mq.TLO.Me.Pet.Target.Dead() then
             previousPetTarget = 'Empty'
-        end
-        if mq.TLO.Me.Pet.Target.ID() ~= nil and mq.TLO.Me.Pet.Target.ID() ~= 0 then
+        else
             previousPetTarget = mq.TLO.Me.Pet.Target.ID()
             if mimicPetTarget ~= previousPetTarget then
                 sendUpdate = true
@@ -293,7 +292,7 @@ local function updatePet()
         end
     end
 
-    if sendUpdate and mq.TLO.Me.Pet() ~= "NO PET" then
+    if sendUpdate then
         mimicActor:send({ mailbox = 'Driver', script = 'mimic',
         }, {
             id = 'petUpdate',
@@ -316,73 +315,122 @@ local function doChase()
         end
     end
 end
-
-
-
-if mq.TLO.Me.Pet() == "NO PET" then
-    mimicPetId = 'Empty'
-    if UIToggles['showPetWindow'] == true and UIToggles['openPetWindow'] == true then
-        UIToggles['showPetWindow'], UIToggles['openPetWindow'] = false, false
+local SpellSorter = function(a, b)
+    if a[1] < b[1] then
+        return false
+    elseif b[1] < a[1] then
+        return true
+    else
+        return false
     end
 end
 
-updateDriver()
-updateGroupIds()
-updateSpellbarIds()
-updateXTarget()
-updateTarget()
-updatePet()
-updateCurrentBuffs()
+local function buildSpellTable()
+    local sendUpdate = false
+    for i = 1, 720 do
+        if mq.TLO.Me.Book(i).ID() ~= nil then
+            local spellID = mq.TLO.Me.Book(i).ID()
+            local spellCategory = mq.TLO.Spell(spellID).Category()
+            local spellSubcategory = mq.TLO.Spell(spellID).Subcategory()
+            if not previousSpellTable[spellCategory] then
+                previousSpellTable[spellCategory] = { subcategories = {} }
+                table.insert(previousSpellTable.categories, spellCategory)
+            end
+            if not previousSpellTable[spellCategory][spellSubcategory] then
+                previousSpellTable[spellCategory][spellSubcategory] = {}
+                table.insert(previousSpellTable[spellCategory].subcategories, spellSubcategory)
+            end
+            table.insert(previousSpellTable[spellCategory][spellSubcategory],
+                { mq.TLO.Spell(spellID).Level(), mq.TLO.Spell(spellID).Name() })
+            sendUpdate = true
+        end
+    end
+    if sendUpdate then
+        table.sort(previousSpellTable.categories)
+        for category, subcategories in pairs(previousSpellTable) do
+            if category ~= 'categories' then
+                table.sort(previousSpellTable[category].subcategories)
+                for subcategory, subcatspells in pairs(subcategories) do
+                    if subcategory ~= 'subcategories' then
+                        table.sort(subcatspells, SpellSorter)
+                    end
+                end
+            end
+        end
+
+        for _, category in ipairs(previousSpellTable['categories']) do
+            for _, subcategory in ipairs(previousSpellTable[category]['subcategories']) do
+                for _, spell in ipairs(previousSpellTable[category][subcategory]) do
+                    printf(' %s: Spell: %s Level: %i in Category: %s under Subcategory: %s', mq.TLO.Me.Name(), spell[2],
+                        spell[1], category, subcategory)
+                end
+            end
+        end
+        mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+        { id = 'updateSpellTable', charName = mq.TLO.Me.Name(), spellTable = previousSpellTable })
+    end
+end
+
+local function initMimic()
+    greetDriver()
+    updateGroupIds()
+    updateSpellbarIds()
+    updateXTarget()
+    updateTarget()
+    updatePet()
+    updateCurrentBuffs()
+    buildSpellTable()
+    if chaseToggle == true then doChase() end
+    if followMATarget == true then mirrorTarget() end
+end
+
+local function isMimicCasting()
+    if mq.TLO.Me.Casting() then
+        while mq.TLO.Me.Casting() do
+            mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+                { id = 'castingTimeUpdate', charName = mq.TLO.Me.Name(), isCasting = mq.TLO.Me.Casting() })
+            mq.delay(10)
+        end
+    end
+    mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+        { id = 'castingTimeUpdate', charName = mq.TLO.Me.Name(), isCasting = mq.TLO.Me.Casting() })
+end
 
 
-
-if chaseToggle == true then doChase() end
-if followMATarget == true then mirrorTarget() end
+local function meleeHandler()
+    if meleeTarget then
+        if mq.TLO.Target.ID() == 0 or mq.TLO.Target.Dead() then
+            meleeTarget = false
+            mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+                { id = 'updateMeleeTarget', charName = mq.TLO.Me.Name(), meleeTarget = meleeTarget })
+            mq.cmd('/attack off')
+        else
+            meleeRoutine()
+        end
+    end
+    if mq.TLO.Me.Combat() and not meleeTarget then
+        mq.cmd('/attack off')
+    end
+end
 
 local function main()
     while running == true do
         if chaseToggle == true then doChase() end
         if followMATarget then mirrorTarget() end
-
-        if mq.TLO.Me.Casting() then
-            while mq.TLO.Me.Casting() do
-                mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
-                    { id = 'castingTimeUpdate', charName = mq.TLO.Me.Name(), isCasting = mq.TLO.Me.Casting() })
-                mq.delay(10)
-            end
-            mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
-                { id = 'castingTimeUpdate', charName = mq.TLO.Me.Name(), isCasting = mq.TLO.Me.Casting() })
-        end
-
-
-        if meleeTarget then
-            while meleeTarget do
-                if mq.TLO.Target.ID() == 0 or mq.TLO.Target.Dead() then
-                    meleeTarget = false
-                    mimicActor:send({ mailbox = 'Driver', script = 'mimic' },{ id = 'updateMeleeTarget', charName = mq.TLO.Me.Name(), meleeTarget = meleeTarget })
-                    mq.cmd('/attack off')
-                else
-                    meleeHandler()
-                end
-            end
-        end
-        if mq.TLO.Me.Combat() and not meleeTarget then
-            mq.cmd('/attack off')
-        end
+        --  buildSpellTable()
+        isMimicCasting()
+        meleeHandler()
         updateCurrentBuffs()
         updateGroupIds()
+        updatePet()
         updateSpellbarIds()
         updateXTarget()
         updateTarget()
-        if mq.TLO.Me.Pet() ~= 'NO PET' then
-            UIToggles['showPetWindow'], UIToggles['openPetWindow'] = true, true
-            updatePet()
-        else
-            UIToggles['showPetWindow'], UIToggles['openPetWindow'] = false, false
-        end
     end
     mq.delay(10)
 end
 
 
+
+initMimic()
 main()
