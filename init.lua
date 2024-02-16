@@ -28,6 +28,7 @@ local ShowMimicLoadoutWindow = {}
 ShowMimicSettings = false
 OpenMimicSettings = false
 
+local mimicDriver = true
 
 
 Settings = {
@@ -195,6 +196,9 @@ mq.imgui.init('Mimic Bar', MimicBarLoop)
 
 local function main()
     while running do
+        if mimicDriver then
+            
+        end
         mq.delay(10)
     end
 end

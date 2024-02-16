@@ -88,25 +88,31 @@ function InfoUpdate.UpdateTarget(previousTarget, mimicTargetId, previousTargetBu
     if mq.TLO.Target.ID() == nil or mq.TLO.Target.ID() == 0 then
         previousTarget = 'Empty'
     end
+    
     if mq.TLO.Target.ID() ~= nil and mq.TLO.Target.ID() ~= 0 then
         previousTarget = mq.TLO.Target.ID()
+        if previousTarget ~= mimicTargetId then
+            previousTargetBuffs = {}
+        end
         for i = 1, mq.TLO.Target.BuffCount() do
             if previousTargetBuffs[i] ~= mq.TLO.Target.Buff(i).ID() then
                 previousTargetBuffs[i] = mq.TLO.Target.Buff(i).ID()
+                printf('target:%s buff id: %i', mq.TLO.Target.Name(), previousTargetBuffs[i])
             elseif mq.TLO.Target.Buff(i).ID() == nil then
                 previousTargetBuffs[i] = 0
             end
         end
     end
-    if mimicTargetId ~= previousTarget then
-        sendUpdate = true
-        mimicTargetId = previousTarget
-    end
+    
     for i = 1, #previousTargetBuffs do
         if targetBuffs[i] ~= previousTargetBuffs[i] then
             sendUpdate = true
             targetBuffs[i] = previousTargetBuffs[i]
         end
+    end
+    if mimicTargetId ~= previousTarget then
+        sendUpdate = true
+        mimicTargetId = previousTarget
     end
     return {sendUpdate, mimicTargetId, targetBuffs}
 end
