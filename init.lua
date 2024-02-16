@@ -112,6 +112,7 @@ DriverActor = actors.register('Driver', function(message)
         mimicCharacters[message.content.charName]['xtargetList'] = message.content.xtarget
     elseif message.content.id == 'updateTarget' then
         mimicCharacters[message.content.charName]['mimicTargetId'] = message.content.target
+        mimicCharacters[message.content.charName]['targetBuffs'] = message.content.targetBuffs
     elseif message.content.id == 'petUpdate' then
         mimicCharacters[message.content.charName].mimicPetTarget = message.content.petTarget
         mimicCharacters[message.content.charName].mimicPetId = message.content.petId
@@ -164,7 +165,7 @@ local function OpenAllInstances(open, show, name, type, windowflags)
     end
 end
 
-
+ 
 local function MimicBarLoop()
     OpenAllInstances(Settings.OpenMimicSpellBar, ShowMimicSpellBar, "Mimic Bar", "Spellbar", window_flags)
     OpenAllInstances(Settings.OpenMimicGroupWindow, ShowMimicGroupWindow, "Mimic Group", "Group", window_flags)

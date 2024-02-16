@@ -7,6 +7,7 @@ local mimicXTarget = require('mimicXTargetWindow')
 local mimicTarget = require('mimicTargetWindow')
 local mimicPet = require('mimicPetWindow')
 local mimicControlDash = require('mimicControlDash')
+local infoUpdate = require('infoUpdate')
 local running = true
 
 
@@ -47,6 +48,8 @@ local xtargetIds = {}
 local mimicTargetId = {}
 local mimicBuffs = {}
 local mimicBuffDurations = {}
+local previousTargetBuffs = {}
+local targetBuffs = {}
 
 local mimicTargetId = 'Empty'
 local previousTarget = 'Empty'
@@ -138,117 +141,7 @@ local function greetDriver()
         })
 end
 
-local function updateCurrentBuffs()
-    local sendUpdate = false
-    for index = 1, mq.TLO.Me.MaxBuffSlots() do
-        if mq.TLO.Me.Buff(index).ID() ~= nil and previousMimicBuffs[index] ~= mq.TLO.Me.Buff(index).ID() then
-            previousMimicBuffs[index] = mq.TLO.Me.Buff(index).Spell()
-        end
-    end
-    for i = 1, #previousMimicBuffs do
-        if mimicBuffs[i] ~= previousMimicBuffs[i] then
-            sendUpdate = true
-            mimicBuffs[i] = previousMimicBuffs[i]
-            print(mimicBuffs[i])
-        end
-    end
-    if sendUpdate then
-        print('sending buffs')
-        mimicActor:send({ mailbox = "Driver", script = 'mimic' },
-            {
-                id = 'updateBuffs',
-                charName = mq.TLO.Me.Name(),
-                mimicBuffs = mimicBuffs
-            })
-    end
-end
-local function updateSpellbarIds()
-    local sendUpdate = false
-    for i = 1, mq.TLO.Me.NumGems() do
-        if mq.TLO.Me.Gem(i).ID() == nil then
-            previousSpellbar[i] = 'Empty'
-        end
-        if mq.TLO.Me.Gem(i).ID() ~= nil then
-            previousSpellbar[i] = mq.TLO.Me.Gem(i).ID()
-        end
-    end
-    for i = 1, #previousSpellbar do
-        if spellbarIds[i] ~= previousSpellbar[i] or spellbarIds[i] == nil then
-            spellbarIds[i] = previousSpellbar[i]
-            print(spellbarIds[i])
-            sendUpdate = true
-        end
-    end
-    if sendUpdate then
-        mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
-            { id = 'updateSpellbar', charName = mq.TLO.Me.Name(), spellbar = spellbarIds })
-    end
-end
-local function updateGroupIds()
-    local selfIncluded = false
-    local sendUpdate = false
-    for i = 0, 5 do
-        if mq.TLO.Group.Member(i).ID() == nil then
-            previousGroup[i] = 'Empty'
-        end
-        if mq.TLO.Group.Member(i).ID() ~= nil then
-            previousGroup[i] = mq.TLO.Group.Member(i).ID()
-        end
-    end
-    for i = 1, #previousGroup do
-        if groupIds[i] ~= previousGroup[i] then
-            sendUpdate = true
-            groupIds[i] = previousGroup[i]
-        end
-        if previousGroup[i] == mq.TLO.Me.ID() then selfIncluded = true end
-    end
-    if not selfIncluded then
-        groupIds[0] = mq.TLO.Me.ID()
-    end
-    if sendUpdate then
-        mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
-            { id = 'updateGroup', charName = mq.TLO.Me.Name(), groupIds = groupIds })
-    end
-end
-local function updateXTarget()
-    local sendUpdate = false
-    for i = 1, mq.TLO.Me.XTargetSlots() do
-        if mq.TLO.Me.XTarget(i).ID() == nil or mq.TLO.Me.XTarget(i).ID() == 0 then
-            previousXTarget[i] = 'Empty'
-        end
-        if mq.TLO.Me.XTarget(i).ID() ~= nil and mq.TLO.Me.XTarget(i).ID() ~= 0 then
-            previousXTarget[i] = mq.TLO.Me.XTarget(i).ID()
-        end
-    end
-    for i = 1, # previousXTarget do
-        if xtargetList[i] ~= previousXTarget[i] then
-            sendUpdate = true
-            xtargetList[i] = previousXTarget[i]
-        end
-    end
-    if sendUpdate then
-        mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
-            { id = 'updateXTarget', charName = mq.TLO.Me.Name(), xtarget = xtargetList })
-    end
-end
-local function updateTarget()
-    local sendUpdate = false
-    if mq.TLO.Target.ID() == nil or mq.TLO.Target.ID() == 0 then
-        previousTarget = 'Empty'
-    end
-    if mq.TLO.Target.ID() ~= nil and mq.TLO.Target.ID() ~= 0 then
-        previousTarget = mq.TLO.Target.ID()
-    end
-    if mimicTargetId ~= previousTarget then
-        sendUpdate = true
-        mimicTargetId = previousTarget
-    end
 
-    if sendUpdate then
-        mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
-            { id = 'updateTarget', charName = mq.TLO.Me.Name(), target = mimicTargetId })
-    end
-end
 local function mirrorTarget()
     if mq.TLO.Group.MainAssist.ID() ~= nil and not (mq.TLO.Group.MainAssist.OtherZone() or mq.TLO.Group.MainAssist.Offline() or mq.TLO.Group.MainAssist.Name() == mq.TLO.Me.Name()) then
         if mq.TLO.Target.ID() ~= mq.TLO.Me.GroupAssistTarget.ID() then
@@ -256,53 +149,7 @@ local function mirrorTarget()
         end
     end
 end
-local function updatePet()
-    local sendUpdate = false
-    if mq.TLO.Me.Pet() == "NO PET" then
-        previousPetId = 'Empty'
-        if mimicPetId ~= previousPetId then
-            sendUpdate = true
-            mimicPetId = 'Empty'
-        end
-    end
-    -- Pet Summoned
-    if mq.TLO.Me.Pet() ~= 'NO PET' then
-        previousPetId = mq.TLO.Spawn(mq.TLO.Me.Pet()).ID()
-        if mimicPetId ~= previousPetId then
-            sendUpdate = true
-            mimicPetId = previousPetId
-        end
-        -- in combat
-        if mq.TLO.Me.Pet.Combat() ~= mimicPetCombat then
-            previousPetCombat = mq.TLO.Me.Pet.Combat()
-            if mimicPetCombat ~= previousPetCombat then
-                sendUpdate = true
-                mimicPetCombat = previousPetCombat
-            end
-        end
-        -- Target
-        if mq.TLO.Me.Pet.Target.ID() == 0 or mq.TLO.Me.Pet.Target.Dead() then
-            previousPetTarget = 'Empty'
-        else
-            previousPetTarget = mq.TLO.Me.Pet.Target.ID()
-            if mimicPetTarget ~= previousPetTarget then
-                sendUpdate = true
-                mimicPetTarget = previousPetTarget
-            end
-        end
-    end
 
-    if sendUpdate then
-        mimicActor:send({ mailbox = 'Driver', script = 'mimic',
-        }, {
-            id = 'petUpdate',
-            charName = mq.TLO.Me.Name(),
-            inCombat = mimicPetCombat,
-            petTarget = mimicPetTarget,
-            petId = mimicPetId,
-        })
-    end
-end
 local function doChase()
     if mq.TLO.Group.MainAssist.ID() ~= nil and not (mq.TLO.Group.MainAssist.OtherZone() or mq.TLO.Group.MainAssist.Offline() or mq.TLO.Group.MainAssist() == mq.TLO.Me.Name())
     then
@@ -367,18 +214,44 @@ local function buildSpellTable()
             end
         end
         mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
-        { id = 'updateSpellTable', charName = mq.TLO.Me.Name(), spellTable = previousSpellTable })
+            { id = 'updateSpellTable', charName = mq.TLO.Me.Name(), spellTable = previousSpellTable })
     end
 end
 
 local function initMimic()
     greetDriver()
-    updateGroupIds()
-    updateSpellbarIds()
-    updateXTarget()
-    updateTarget()
-    updatePet()
-    updateCurrentBuffs()
+    if InfoUpdate.updateSpellbar(previousSpellbar, spellbarIds)[1] then
+        spellbarIds = InfoUpdate.updateSpellbar(previousSpellbar, spellbarIds)[2]
+        mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+            { id = 'updateSpellbar', charName = mq.TLO.Me.Name(), spellbar = spellbarIds })
+    end
+    if InfoUpdate.updateBuffs(previousMimicBuffs, mimicBuffs)[1] then
+        print('sending buffs')
+        mimicBuffs = InfoUpdate.updateBuffs(previousMimicBuffs, mimicBuffs)[2]
+        mimicActor:send({ mailbox = "Driver", script = 'mimic' },
+            {
+                id = 'updateBuffs',
+                charName = mq.TLO.Me.Name(),
+                mimicBuffs = mimicBuffs
+            })
+    end
+    if InfoUpdate.updateGroupIds(previousGroup, groupIds)[1] then
+        groupIds = InfoUpdate.updateGroupIds(previousGroup, groupIds)[2]
+        mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+            { id = 'updateGroup', charName = mq.TLO.Me.Name(), groupIds = groupIds })
+    end
+    if InfoUpdate.updateXTarget(previousXTarget, xtargetList)[1] then
+        xtargetList = InfoUpdate.updateXTarget(previousXTarget, xtargetList)[2]
+        mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+            { id = 'updateXTarget', charName = mq.TLO.Me.Name(), xtarget = xtargetList })
+    end
+    if InfoUpdate.UpdateTarget(previousTarget, mimicTargetId, previousTargetBuffs, targetBuffs)[1] then
+        mimicTargetId = InfoUpdate.UpdateTarget(previousTarget, mimicTargetId, previousTargetBuffs, targetBuffs)[2]
+        targetBuffs = InfoUpdate.UpdateTarget(previousTarget, mimicTargetId, previousTargetBuffs, targetBuffs)[3]
+
+        mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+            { id = 'updateTarget', charName = mq.TLO.Me.Name(), target = mimicTargetId, targetBuffs = targetBuffs })
+    end
     buildSpellTable()
     if chaseToggle == true then doChase() end
     if followMATarget == true then mirrorTarget() end
@@ -420,12 +293,54 @@ local function main()
         --  buildSpellTable()
         isMimicCasting()
         meleeHandler()
-        updateCurrentBuffs()
-        updateGroupIds()
-        updatePet()
-        updateSpellbarIds()
-        updateXTarget()
-        updateTarget()
+        if InfoUpdate.updateSpellbar(previousSpellbar, spellbarIds)[1] then
+            spellbarIds = InfoUpdate.updateSpellbar(previousSpellbar, spellbarIds)[2]
+            mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+                { id = 'updateSpellbar', charName = mq.TLO.Me.Name(), spellbar = spellbarIds })
+        end
+        if InfoUpdate.updateBuffs(previousMimicBuffs, mimicBuffs)[1] then
+            print('sending buffs')
+            mimicBuffs = InfoUpdate.updateBuffs(previousMimicBuffs, mimicBuffs)[2]
+            mimicActor:send({ mailbox = "Driver", script = 'mimic' },
+                {
+                    id = 'updateBuffs',
+                    charName = mq.TLO.Me.Name(),
+                    mimicBuffs = mimicBuffs
+                })
+        end
+        if InfoUpdate.updateGroupIds(previousGroup, groupIds)[1] then
+            groupIds = InfoUpdate.updateGroupIds(previousGroup, groupIds)[2]
+            mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+                { id = 'updateGroup', charName = mq.TLO.Me.Name(), groupIds = groupIds })
+        end
+        if InfoUpdate.updateXTarget(previousXTarget, xtargetList)[1] then
+            xtargetList = InfoUpdate.updateXTarget(previousXTarget, xtargetList)[2]
+            mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+                { id = 'updateXTarget', charName = mq.TLO.Me.Name(), xtarget = xtargetList })
+        end
+        if InfoUpdate.UpdateTarget(previousTarget, mimicTargetId, previousTargetBuffs, targetBuffs)[1] then
+            mimicTargetId = InfoUpdate.UpdateTarget(previousTarget, mimicTargetId, previousTargetBuffs, targetBuffs)[2]
+            targetBuffs = InfoUpdate.UpdateTarget(previousTarget, mimicTargetId, previousTargetBuffs, targetBuffs)[3]
+
+            mimicActor:send({ mailbox = 'Driver', script = 'mimic' },
+                { id = 'updateTarget', charName = mq.TLO.Me.Name(), target = mimicTargetId, targetBuffs = targetBuffs })
+        end
+    end
+    if InfoUpdate.updatePet(previousPetId, mimicPetId, previousPetCombat, mimicPetCombat, previousPetTarget, mimicPetTarget)[1] then
+        mimicPetId = InfoUpdate.updatePet(previousPetId, mimicPetId, previousPetCombat, mimicPetCombat, previousPetTarget,
+            mimicPetTarget)[2]
+        mimicPetCombat = InfoUpdate.updatePet(previousPetId, mimicPetId, previousPetCombat, mimicPetCombat,
+            previousPetTarget, mimicPetTarget)[3]
+        mimicPetTarget = InfoUpdate.updatePet(previousPetId, mimicPetId, previousPetCombat, mimicPetCombat,
+            previousPetTarget, mimicPetTarget)[4]
+        mimicActor:send({ mailbox = 'Driver', script = 'mimic',
+        }, {
+            id = 'petUpdate',
+            charName = mq.TLO.Me.Name(),
+            inCombat = mimicPetCombat,
+            petTarget = mimicPetTarget,
+            petId = mimicPetId,
+        })
     end
     mq.delay(10)
 end

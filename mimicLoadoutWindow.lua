@@ -1,6 +1,6 @@
 local mq = require('mq')
 local ImGui = require('ImGui')
-local modifyingGem = {gem = 1, id = nil}
+local modifyingGem = { gem = 1, id = nil }
 local gemButtons = {}
 local gemLoc = {}
 local screenGemLoc = {}
@@ -23,52 +23,37 @@ local function drawSquare(screenCursorPos, color)
 end
 
 
+local searchText
 
 local currentCategory
 local currentSubcategory
 local currentSpell
 function MimicLoadoutWindow.DrawSpellCategorySelect(charName, charTable)
     if ImGui.BeginListBox("##Category", ImVec2(150, 300)) then
-        for i, item in pairs(charTable.spellTable.categories) do
-            local _, clicked = ImGui.Selectable(item, currentCategory == item)
-            ImGui.Separator()
-            if clicked then
-                currentSubcategory = nil
-                currentSpell = nil
-                currentCategory = item
-             
-            end
-        end
-    end
-    ImGui.EndListBox()
-end
-
-function MimicLoadoutWindow.DrawSpellSubcategorySelect(charName, charTable)
-    if ImGui.BeginListBox("##Subcategory", ImVec2(150, 300)) then
-        if currentCategory ~= nil then
-            for i, item in pairs(charTable.spellTable[currentCategory].subcategories) do
-                local _, clicked = ImGui.Selectable(item, currentSubcategory == item)
+        if searchText == '' or searchText == nil then
+            for i, category in pairs(charTable.spellTable.categories) do
+                local _, clicked = ImGui.Selectable(category, currentCategory == category)
                 ImGui.Separator()
                 if clicked then
+                    currentSubcategory = nil
                     currentSpell = nil
-                    currentSubcategory = item
+                    currentCategory = category
                 end
             end
-        end
-    end
-    ImGui.EndListBox()
-end
-function MimicLoadoutWindow.DrawSpellSelect(charName, charTable)
-    if ImGui.BeginListBox("##Spells", ImVec2(200, 300)) then
-        if currentSubcategory ~= nil and currentCategory ~= nil  then
-            for i, item in pairs(charTable.spellTable[currentCategory][currentSubcategory]) do
-                local _, clicked = ImGui.Selectable('Lvl:'..item[1].. ' '..item[2], currentSpell == item[2])
-                ImGui.Separator()
-                if clicked then
-                    currentSpell = item[2]
-                    if mq.TLO.Spell(modifyingGem.id).Name() ~= currentSpell then
-                        modifyingGem.id = mq.TLO.Spell(currentSpell).Name()
-                        DriverActor:send({mailbox='mimic', script = 'mimic/mimicme'}, {id='updateSpellbar', charName = charName, gem = modifyingGem.gem, spellId = currentSpell })
+        elseif searchText ~= '' and searchText ~= nil then
+            for i, category in pairs(charTable.spellTable.categories) do
+                for i, subcategory in pairs(charTable.spellTable[category].subcategories) do
+                    for i, spellData in pairs(charTable.spellTable[category][subcategory]) do
+                        if string.find(spellData[2], searchText) then
+                            print(spellData[2])
+                            local _, clicked = ImGui.Selectable(category, currentCategory == category)
+                            ImGui.Separator()
+                            if clicked then
+                                currentSubcategory = nil
+                                currentSpell = nil
+                                currentCategory = category
+                            end
+                        end
                     end
                 end
             end
@@ -77,6 +62,84 @@ function MimicLoadoutWindow.DrawSpellSelect(charName, charTable)
     ImGui.EndListBox()
 end
 
+function MimicLoadoutWindow.DrawSpellSubcategorySelect(charName, charTable)
+    if ImGui.BeginListBox("##Subcategory", ImVec2(150, 300)) then
+        if currentCategory ~= nil and (searchText == '' or searchText == nil) then
+            for i, item in pairs(charTable.spellTable[currentCategory].subcategories) do
+                local _, clicked = ImGui.Selectable(item, currentSubcategory == item)
+                ImGui.Separator()
+                if clicked then
+                    currentSpell = nil
+                    currentSubcategory = item
+                end
+            end
+        elseif searchText ~= '' and searchText ~= nil then
+            for i, category in pairs(charTable.spellTable.categories) do
+                for i, subcategory in pairs(charTable.spellTable[category].subcategories) do
+                    for i, spellData in pairs(charTable.spellTable[category][subcategory]) do
+                        if string.find(spellData[2], searchText) then
+                            print(spellData[2])
+                            local _, clicked = ImGui.Selectable(subcategory, currentSubcategory == subcategory)
+                            ImGui.Separator()
+                            if clicked then
+                                currentSubcategory = subcategory
+                                currentSpell = nil
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    ImGui.EndListBox()
+end
+
+function MimicLoadoutWindow.DrawSpellSelect(charName, charTable)
+    if ImGui.BeginListBox("##Spells", ImVec2(200, 300)) then
+        if currentSubcategory ~= nil and currentCategory ~= nil and (searchText == '' or searchText == nil) then
+            for i, item in pairs(charTable.spellTable[currentCategory][currentSubcategory]) do
+                local _, clicked = ImGui.Selectable('Lvl:' .. item[1] .. ' ' .. item[2], currentSpell == item[2])
+                ImGui.Separator()
+                if clicked then
+                    currentSpell = item[2]
+                    if mq.TLO.Spell(modifyingGem.id).Name() ~= currentSpell then
+                        modifyingGem.id = mq.TLO.Spell(currentSpell).Name()
+                        DriverActor:send({ mailbox = 'mimic', script = 'mimic/mimicme' },
+                            { id = 'updateSpellbar', charName = charName, gem = modifyingGem.gem, spellId = currentSpell })
+                    end
+                end
+            end
+        elseif searchText ~= '' and searchText ~= nil then
+            for i, category in pairs(charTable.spellTable.categories) do
+                for i, subcategory in pairs(charTable.spellTable[category].subcategories) do
+                    for i, spellData in pairs(charTable.spellTable[category][subcategory]) do
+                        if string.g(spellData[2], searchText) then
+                            print(spellData[2])
+                            local _, clicked = ImGui.Selectable('Lvl:' .. spellData[1] .. ' ' .. spellData[2],
+                                currentSpell == spellData[2])
+                            ImGui.Separator()
+                            if clicked then
+                                currentSpell = spellData[2]
+                                if mq.TLO.Spell(modifyingGem.id).Name() ~= currentSpell then
+                                    modifyingGem.id = mq.TLO.Spell(currentSpell).Name()
+                                    DriverActor:send({ mailbox = 'mimic', script = 'mimic/mimicme' },
+                                        {
+                                            id = 'updateSpellbar',
+                                            charName = charName,
+                                            gem = modifyingGem.gem,
+                                            spellId = currentSpell
+                                        })
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    ImGui.EndListBox()
+end
 
 function MimicLoadoutWindow.DrawCurrentSpellbar(charName, charTable)
     local spellIds = charTable['Spellbar']
@@ -103,9 +166,11 @@ function MimicLoadoutWindow.DrawCurrentSpellbar(charName, charTable)
 
             drawSquare(screenGemLoc[modifyingGem.gem], green)
 
+
+
             if gemButtons[currentGem] then
                 printf('gem %s clicked', currentGem)
-                modifyingGem = {gem=currentGem, id=mq.TLO.Spell(currentGem).ID()}
+                modifyingGem = { gem = currentGem, id = mq.TLO.Spell(currentGem).ID() }
                 currentCategory = mq.TLO.Spell(spellIds[modifyingGem.id]).Category()
                 currentSubcategory = mq.TLO.Spell(spellIds[modifyingGem.id]).Subcategory()
                 currentSpell = mq.TLO.Spell(spellIds[modifyingGem.id]).Name()
@@ -129,10 +194,12 @@ function MimicLoadoutWindow.DrawSpellsTab(charName, charTable)
     MimicLoadoutWindow.DrawCurrentSpellbar(charName, charTable)
     ImGui.SetCursorPos(60, 40)
     MimicLoadoutWindow.DrawSpellCategorySelect(charName, charTable)
-    ImGui.SetCursorPos(212,40)
+    ImGui.SetCursorPos(212, 40)
     MimicLoadoutWindow.DrawSpellSubcategorySelect(charName, charTable)
-    ImGui.SetCursorPos(364,40)
-    MimicLoadoutWindow.DrawSpellSelect(charName,charTable)
+    ImGui.SetCursorPos(364, 40)
+    MimicLoadoutWindow.DrawSpellSelect(charName, charTable)
+    ImGui.SetCursorPos(60, 346)
+    searchText = ImGui.InputText("##spellSearch", searchText)
 end
 
 function MimicLoadoutWindow.DrawTabScreen(tab, charName, charTable)

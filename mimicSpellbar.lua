@@ -19,7 +19,7 @@ function MimicSpellbar.DrawSpellbar(charName, charTable)
             if spellIds[currentGem] == 'Empty' or spellIds[currentGem] == nil then
                 local curx = ImGui.GetCursorPosX()
                 local cury = ImGui.GetCursorPosY()
-                ImGui.SetCursorPos(curx, cury + 36)
+                ImGui.SetCursorPos(curx, cury + 40)
             elseif spellIds[currentGem] ~= 'Empty' and spellIds[currentGem] ~= nil then
                 local cursorPos = ImGui.GetCursorPosVec()
                 local screenCursorPos = ImGui.GetCursorScreenPosVec()
@@ -34,7 +34,6 @@ function MimicSpellbar.DrawSpellbar(charName, charTable)
                     animSpellIcons:SetTextureCell(mq.TLO.Spell(spellIds[currentGem]).SpellIcon())
                     ImGui.DrawTextureAnimation(animSpellIcons, 32, 32)
                 end
-
                 ImGui.SetCursorPos(cursorPos)
                 gemButtons[currentGem] = ImGui.InvisibleButton(mq.TLO.Spell(spellIds[currentGem]).Name(), 32, 32)
                 ImGui.SetCursorPos(4, ImGui.GetCursorPosY() + 4)
