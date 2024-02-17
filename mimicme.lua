@@ -68,7 +68,7 @@ local meleeTarget = false
 
 local previousSpellTable = { categories = {} }
 local currentSpellTable = { categories = {} }
-
+local updateDriver = false
 local mimicActor = actors.register('mimic', function(message)
     -- Chase Message
     if message.content.id == 'updateChase' then
@@ -114,6 +114,9 @@ local mimicActor = actors.register('mimic', function(message)
     elseif message.content.id == 'updateSpellbar' and message.content.charName == mq.TLO.Me.Name() then
         print(message.content.gem, message.content.spellId)
         mq.cmdf('/memspell %i "%s"', message.content.gem, message.content.spellId)
+    elseif message.content.id == 'driverConnected' then
+        updateDriver = true
+
     end
 end)
 
@@ -220,6 +223,10 @@ end
 
 local function initMimic()
     greetDriver()
+    if updateDriver then
+        greetDriver()
+        updateDriver = false
+    end
     if InfoUpdate.updateSpellbar(previousSpellbar, spellbarIds)[1] then
         spellbarIds = InfoUpdate.updateSpellbar(previousSpellbar, spellbarIds)[2]
         mimicActor:send({ mailbox = 'Driver', script = 'mimic' },

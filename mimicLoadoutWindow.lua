@@ -116,7 +116,7 @@ function MimicLoadoutWindow.DrawSpellSelect(charName, charTable)
             for i, category in pairs(charTable.spellTable.categories) do
                 for i, subcategory in pairs(charTable.spellTable[category].subcategories) do
                     for i, spellData in pairs(charTable.spellTable[category][subcategory]) do
-                        if string.g(spellData[2], searchText) then
+                        if string.find(spellData[2], searchText) then
                             print(spellData[2])
                             local _, clicked = ImGui.Selectable('Lvl:' .. spellData[1] .. ' ' .. spellData[2],
                                 currentSpell[charName] == spellData[2])

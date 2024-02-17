@@ -10,6 +10,7 @@ local mimicPet = require('mimicPetWindow')
 local mimicControlDash = require('mimicControlDash')
 local mimicBuffWindow = require('mimicBuffWindow')
 local mimicLoadoutWindow = require('mimicLoadoutWindow')
+local InfoUpdate = require('infoUpdate')
 local mimicCharacters = {}
 
 
@@ -30,7 +31,6 @@ OpenMimicSettings = false
 
 local mimicDriver = true
 
-
 Settings = {
     OpenMimicSpellBar = {},
     OpenMimicGroupWindow = {},
@@ -49,24 +49,6 @@ local no_resize = true
 if no_titlebar then window_flags = bit32.bor(window_flags, ImGuiWindowFlags.NoTitleBar) end
 if no_scrollbar then window_flags = bit32.bor(window_flags, ImGuiWindowFlags.NoScrollbar) end
 if no_resize then window_flags = bit32.bor(window_flags, ImGuiWindowFlags.NoResize) end
-
-
-
-local function prepSettings()
-    local nameFound = false
-    for name, data in pairs(mimicCharacters) do
-        for settingName, value in pairs(Settings) do
-            for toonName, settingValue in pairs(Settings[settingName]) do
-                if toonName == mimicCharacters[name] then nameFound = true end
-            end
-            if not nameFound then
-                Settings[settingName][name] = true
-            else
-                nameFound = false
-            end
-        end
-    end
-end
 
 MimicCasting = {}
 
@@ -140,6 +122,8 @@ DriverActor = actors.register('Driver', function(message)
     end
 end)
 
+
+
 local typeHandlers = {
     Spellbar = mimicSpellbar.DrawSpellbar,
     Group = mimicGroup.DrawMimicGroupWindow,
@@ -187,8 +171,7 @@ local function MimicBarLoop()
     end
 end
 
-
-
+DriverActor:send({mailbox='mimic', script = 'mimic/mimicme'}, {id = 'driverConnected'})
 mq.imgui.init('Mimic Bar', MimicBarLoop)
 
 
@@ -196,9 +179,7 @@ mq.imgui.init('Mimic Bar', MimicBarLoop)
 
 local function main()
     while running do
-        if mimicDriver then
-            
-        end
+      
         mq.delay(10)
     end
 end
