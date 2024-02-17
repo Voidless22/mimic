@@ -19,6 +19,7 @@
 - all interactions with the recreated windows
 
 **Planning Board(2/16/24)**
+
 ![image](https://github.com/Voidless22/mimic/assets/79501102/63e977df-bc3a-4fcf-8e90-509c35eda452)
 
       
